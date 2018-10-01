@@ -33,6 +33,15 @@ class DoubleLinkedList:
         else:
             self.tail.next = self.tail = Node(x, self.tail, None)
 
+    def find(self, x):
+        current = self.head
+        while current.next:
+            if current.value == x:
+                return current.value
+            else:
+                current = current.next
+        return None
+
 
 if __name__ == '__main__':
     dlist = DoubleLinkedList()
@@ -41,3 +50,5 @@ if __name__ == '__main__':
     dlist.add(3)
     dlist.add(4)
     print(dlist)
+    print(dlist.find(3))
+    print(dlist.find(6))
