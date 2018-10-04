@@ -2,15 +2,18 @@ import os
 import argparse
 import shutil
 from threading import Thread
+from math import ceil
+from queue import Queue
 
 
 class Operation(Thread):
 
-    def __init__(self, opr, frm, to):
+    def __init__(self, opr, queue, to, count):
         super(Operation, self).__init__()
         self.opr = opr
-        self.frm = frm
+        self.queue = queue
         self.to = to
+        self.count = count
 
     def copy_dir(self, src, dst):
         _, d_name = os.path.split(src)
@@ -33,24 +36,36 @@ class Operation(Thread):
         shutil.move(frm, dst)
 
     def run(self):
-        if self.opr == 'copy':
-            if os.path.isdir(self.frm):
-                self.copy_dir(self.frm, self.to)
-            else:
-                self.copy(self.frm, self.to)
-        elif self.opr == 'move':
-            self.move(self.frm, self.to)
+        print('***')
+        for _ in range(self.count):
+            path = self.queue.get()
+            if self.opr == 'copy':
+                if os.path.isdir(path):
+                    self.copy_dir(path, self.to)
+                else:
+                    self.copy(path, self.to)
+            elif self.opr == 'move':
+                self.move(path, self.to)
+            self.queue.task_done()
 
 
 def main(args):
+    queue = Queue()
+
     if len(args.from_dir) > 1:
-        for src in args.from_dir:
-            threard = Operation(args.operation, src, args.to)
-            threard.start()
+        threads = ceil(len(args.from_dir) / args.count)
+
+        for _ in range(threads):
+            thread = Operation(args.operation, queue, args.to, args.count)
+            thread.setDaemon(True)
+            thread.start()
     else:
-        src = args.from_dir[0]
-        threard = Operation(args.operation, src, args.to)
-        threard.start()
+        thread = Operation(args.operation, queue, args.to, args.count)
+        thread.start()
+
+    for path in args.from_dir:
+        queue.put(path)
+    queue.join()
 
 
 if __name__ == '__main__':
@@ -60,6 +75,6 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--from', dest='from_dir', type=str,
                         help='some verbosity', nargs='*')
     parser.add_argument('-t', '--to', type=str, help='some verbosity')
-    parser.add_argument('--threads', type=int, help='')
+    parser.add_argument('--threads', dest='count', type=int, help='', default=1)
     args = parser.parse_args()
     main(args)
