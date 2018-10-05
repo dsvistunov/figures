@@ -18,7 +18,10 @@ class Operation(Thread):
     def copy_dir(self, src, dst):
         _, d_name = os.path.split(src)
         dist = os.path.join(dst, d_name)
-        os.mkdir(dist) # FileExistsError
+        try:
+            os.mkdir(dist)
+        except FileExistsError:
+            pass
         for file in os.listdir(src):
             source = os.path.join(src, file)
             if os.path.isdir(source):
