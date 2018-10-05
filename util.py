@@ -39,7 +39,6 @@ class Operation(Thread):
         shutil.move(frm, dst)
 
     def run(self):
-        print('***')
         for _ in range(self.count):
             path = self.queue.get()
             if self.opr == 'copy':
@@ -74,10 +73,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--operation', type=str,
-                        choices=['move', 'copy'], help='some verbosity')
+                        choices=['move', 'copy'], help='set operation copy or move')
     parser.add_argument('-f', '--from', dest='from_dir', type=str,
-                        help='some verbosity', nargs='*')
-    parser.add_argument('-t', '--to', type=str, help='some verbosity')
-    parser.add_argument('--threads', dest='count', type=int, help='', default=1)
+                        help='source path', nargs='*')
+    parser.add_argument('-t', '--to', type=str, help='destination path')
+    parser.add_argument('--threads', dest='count', type=int, help='count of files that copy/move in thread', default=1)
     args = parser.parse_args()
     main(args)
