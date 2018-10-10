@@ -32,6 +32,23 @@ class DataBase:
         self.create_table(connection, self._sql_create_table)
 
 
+class Model:
+
+    @classmethod
+    def select(cls, *args, **kwargs):
+        conn = sqlite3.connect('mydb.sqlite3')
+        c = conn.cursor()
+        sql_str = 'SELECT * FROM {}'.format(cls.__name__)
+        if kwargs:
+            for key, val in kwargs.items():
+                field, opt = key.split('__')
+            if opt == 'startswith':
+                sql_str += ' WHERE {} LIKE "{}%"'.format(field, val)
+        sql_str += ';'
+        c.execute(sql_str)
+        return c.fetchall()
+
+
 class CharField:
     field_type = 'VARCHAR'
 
@@ -62,7 +79,7 @@ class IntegerField:
         return '%s %s' % (self.field_type.lower(), is_null)
 
 
-class Table1:
+class Table1(Model):
     name = CharField(null=True)
     age = IntegerField(default=1)
 
@@ -71,3 +88,8 @@ if __name__ == '__main__':
     register = DataBase('mydb.sqlite3')
     register.add(Table1)
     register.migrate()
+
+    slct1 = Table1.select()
+    slct2 = Table1.select(name__startswith='B')
+    print(slct1)
+    print(slct2)
