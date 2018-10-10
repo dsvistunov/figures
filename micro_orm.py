@@ -5,48 +5,67 @@ class DataBase:
 
     def __init__(self, db_file='db.sqlite3'):
         self.db_file = db_file
-        self._sql_create_table = None
+        self._sql_query = None
 
     def add(self, table):
-        sql_str = 'CREATE TABLE IF NOT EXISTS %s (' % table.__name__
-        sql_str += '\n\t\t\t\t\tid int PRIMARY KEY'
+        sql_query = 'CREATE TABLE IF NOT EXISTS %s (' % table.__name__
+        sql_query += '\n\t\t\t\t\tid int PRIMARY KEY'
         for item in table.__dict__.items():
             field, value = item
             if field[:2] != '__' and field[-2:] != '__' \
                     and not callable(getattr(table, field)):
-                sql_str += ',\n\t\t\t\t\t%s %s' % \
+                sql_query += ',\n\t\t\t\t\t%s %s' % \
                            (field, value.get_modifiers())
-        sql_str += '\n\t\t\t\t);'
-        self._sql_create_table = sql_str
+        sql_query += '\n\t\t\t\t);'
+        table.db_file = self.db_file
+        self._sql_query = sql_query
 
     @staticmethod
-    def create_table(conn, sql_crate_table):
-        c = conn.cursor()
-        c.execute(sql_crate_table)
+    def create_table(connection, sql_query):
+        cursor = connection.cursor()
+        cursor.execute(sql_query)
 
-    def connect(self):
-        return sqlite3.connect(self.db_file)
+    @staticmethod
+    def connect(db_file):
+        return sqlite3.connect(db_file)
 
     def migrate(self):
-        connection = self.connect()
-        self.create_table(connection, self._sql_create_table)
+        connection = self.connect(self.db_file)
+        self.create_table(connection, self._sql_query)
 
 
-class Model:
+class Model(DataBase):
 
     @classmethod
     def select(cls, *args, **kwargs):
-        conn = sqlite3.connect('mydb.sqlite3')
-        c = conn.cursor()
-        sql_str = 'SELECT * FROM {}'.format(cls.__name__)
+        connection = cls.connect(cls.db_file)
+        cursor = connection.cursor()
+        table = cls.__name__
+        clause = ''
+        column = ''
+        operator = ''
+        pattern = ''
+
         if kwargs:
             for key, val in kwargs.items():
-                field, opt = key.split('__')
-            if opt == 'startswith':
-                sql_str += ' WHERE {} LIKE "{}%"'.format(field, val)
-        sql_str += ';'
-        c.execute(sql_str)
-        return c.fetchall()
+                for lookup in key.split('__'):
+                    if lookup in cls.__dict__:
+                        column = lookup
+                    elif lookup == 'startswith':
+                        clause = 'WHERE'
+                        operator = 'LIKE'
+                        pattern = '"{}%"'.format(val)
+                    elif lookup == 'endswith':
+                        clause = 'WHERE'
+                        operator = 'LIKE'
+                        pattern = '"%{}"'.format(val)
+                    elif lookup == 'exact':
+                        clause = 'WHERE'
+                        column = '{}="{}"'.format(column, val)
+
+        sql_query = 'SELECT * FROM {0} {1} {2} {3} {4};'.format(table, clause, column, operator, pattern)
+        cursor.execute(sql_query)
+        return cursor.fetchall()
 
 
 class CharField:
@@ -89,7 +108,7 @@ if __name__ == '__main__':
     register.add(Table1)
     register.migrate()
 
-    slct1 = Table1.select()
-    slct2 = Table1.select(name__startswith='B')
-    print(slct1)
-    print(slct2)
+    print(Table1.select())
+    print(Table1.select(name__startswith='B'))
+    print(Table1.select(name__endswith='k'))
+    print(Table1.select(name__exact='Bob'))
